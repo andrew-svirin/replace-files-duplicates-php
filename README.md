@@ -1,4 +1,4 @@
-# replace-dupliactes-php
+# replace-files-dupliactes-php
 Replace files duplicates by links.
 
 Script oriented to scan directories for files those are equal and replace newest by hard or symlink on older one.
