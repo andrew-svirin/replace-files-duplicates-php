@@ -1,0 +1,30 @@
+{
+  "name": "andrew-svirin/replace-files-duplicates-php",
+  "version": "0.0.1",
+  "type": "library",
+  "description": "PHP library to find files duplicates and replace by softlinks or hardlinks links.",
+  "keywords": [
+    "replace",
+    "duplicates",
+    "files",
+    "links",
+    "PHP"
+  ],
+  "authors": [
+    {
+      "name": "Andrew Svirin"
+    }
+  ],
+  "license": "MIT",
+  "require": {
+    "php": "^7.2"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^6.5"
+  },
+  "autoload": {
+    "psr-4": {
+      "AndrewSvirin\\FileReplace\\": "src"
+    }
+  }
+}
