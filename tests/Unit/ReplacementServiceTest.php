@@ -36,8 +36,17 @@ class ReplacementServiceTest extends TestCase
     */
    public function testScan()
    {
-      $this->replacementService->scan();
+      $this->replacementService->scan(function(string $filePath){});
       $this->assertTrue(true);
+   }
+
+   /**
+    * @depends testScan
+    * @group duplicates
+    */
+   public function testGetDuplicates()
+   {
+
    }
 
 }

@@ -3,9 +3,8 @@
 namespace AndrewSvirin\FileReplace;
 
 use AndrewSvirin\FileReplace\Contracts\CacheStorageInterface;
-use AndrewSvirin\FileReplace\Wrappers\DuplicateStreamWrapper;
-use AndrewSvirin\FileReplace\Wrappers\ReplacementStreamWrapper;
 use AndrewSvirin\FileReplace\Wrappers\ScannerStreamWrapper;
+use DateTime;
 
 /**
  * File Replacement Service.
@@ -37,18 +36,6 @@ final class ReplacementService
    private $scannerStreamWrapperContext;
 
    /**
-    * Context for Duplicates.
-    * @var resource
-    */
-   private $duplicateStreamWrapperContext;
-
-   /**
-    * Context for Replacements.
-    * @var resource
-    */
-   private $replacementStreamWrapperContext;
-
-   /**
     * ReplacementService constructor.
     * Register streams for working with files, duplicates, replacements.
     * @param array $dirPaths
@@ -59,26 +46,40 @@ final class ReplacementService
       $this->dirPaths = $dirPaths;
       $this->cacheStorage = $cacheStorage;
       ScannerStreamWrapper::register('scanner');
-      DuplicateStreamWrapper::register('duplicates');
-      ReplacementStreamWrapper::register('replacements');
       $this->scannerStreamWrapperContext = ScannerStreamWrapper::createContext($cacheStorage);
-      $this->duplicateStreamWrapperContext = DuplicateStreamWrapper::createContext($cacheStorage);
-      $this->replacementStreamWrapperContext = ReplacementStreamWrapper::createContext($cacheStorage);
    }
 
    /**
     * Scans directory on files and prepare index.
     * Update scanned index by new added files on next launches.
+    * @param callable $indexRule Rule by index determination for save ordered index.
     * @param callable|null $filter Callback that filters only necessary files.
     */
-   public function scan(callable $filter = null): void
+   public function scan(callable $indexRule, callable $filter = null): void
    {
       // TODO: Implements scan.
-      if (null !== $filter)
+      // Read last scan date from the stream.
+      $lastScanDateHandler = fopen('scanner://index/last-date', 'rb', false, $this->scannerStreamWrapperContext);
+      $lastScanTime = fread($lastScanDateHandler, 20);
+      fclose($lastScanDateHandler);
+      $lastScanDate = DateTime::createFromFormat('U', !empty($lastScanTime) ? (int)$lastScanTime : time());
+      if (!($filePaths = $this->findFilePaths($lastScanDate)))
       {
+         // Return if not new files found.
          return;
       }
-      fopen('scanner://', 'r', false, $this->scannerStreamWrapperContext);
+      if (null !== $filter)
+      {
+         array_filter($filePaths, $filter);
+      }
+      // Add to index storage indexed files.
+      $indexHandler = fopen('scanner://index/data', 'w', false, $this->scannerStreamWrapperContext);
+      foreach ($filePaths as $filePath)
+      {
+         $fileIndex = $indexRule($filePath);
+         fwrite($indexHandler, sprintf('%s:%s', $fileIndex, $indexHandler));
+      }
+      fclose($indexHandler);
       return;
    }
 
@@ -109,6 +110,34 @@ final class ReplacementService
    {
       // TODO: Implements replaceDuplicatesSoft.
       return true;
+   }
+
+   /**
+    * Find files for index in the scanning directories.
+    * @param DateTime|null $lastDateTime Last scan date.
+    * @param int $depth Scan files depth.
+    * @param DateTime|null $currentDateTime Current date.
+    * @return array
+    */
+   private function findFilePaths(DateTime $lastDateTime = null, int $depth = 1, DateTime $currentDateTime = null): array
+   {
+      if (null === $currentDateTime)
+      {
+         $currentDateTime = DateTime::createFromFormat('U', time());
+      }
+      $args = [];
+      if (!empty($depth))
+      {
+         $args[] = sprintf('-maxdepth %d', (int)$depth);
+      }
+      if ($lastDateTime && ($minDays = $currentDateTime->diff($lastDateTime)->format('%a')))
+      {
+         $args[] = sprintf('-mtime %d', (int)$minDays);
+      }
+      $command = sprintf('find %s %s', implode(' ', $this->dirPaths), implode(' ', $args));
+      $output = [];
+      exec($command, $output);
+      return $output;
    }
 
 }

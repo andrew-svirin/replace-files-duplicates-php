@@ -2,7 +2,7 @@
   "name": "andrew-svirin/replace-files-duplicates-php",
   "version": "0.0.1",
   "type": "library",
-  "description": "PHP library to find files duplicates and replace by softlinks or hardlinks links.",
+  "description": "PHP library to scan files duplicates and replace by soft links or hard links.",
   "keywords": [
     "replace",
     "duplicates",

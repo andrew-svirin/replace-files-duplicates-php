@@ -2,7 +2,7 @@
 
 namespace AndrewSvirin\FileReplace\Wrappers;
 
-use AndrewSvirin\FileReplace\Wrappers\Traits\StreamTrait;
+use AndrewSvirin\FileReplace\Contracts\CacheStorageInterface;
 
 /**
  * File FileReaderWrapper implements working with Files and uses cache.
@@ -15,7 +15,74 @@ use AndrewSvirin\FileReplace\Wrappers\Traits\StreamTrait;
 class ScannerStreamWrapper
 {
 
-   use StreamTrait;
+   /**
+    * Is registered stream wrapper.
+    * @var bool
+    */
+   protected static $isRegistered = false;
+
+   /**
+    * Wrapper name.
+    * @var string
+    */
+   protected static $wrapperName;
+
+   /**
+    * Implements $context for StreamWrapper.
+    * @var resource
+    */
+   public $context;
+
+   /**
+    * Cache storage.
+    * @var CacheStorageInterface
+    */
+   protected $cacheStorage;
+
+   /**
+    * End of stream indicator.
+    * @var bool
+    */
+   protected $eof = false;
+
+   /**
+    * Stream path.
+    * @var string
+    */
+   private $path;
+
+   /**
+    * Register stream wrapper.
+    * @param string $wrapperName
+    */
+   public static function register($wrapperName): void
+   {
+      if (!static::$isRegistered)
+      {
+         stream_wrapper_register($wrapperName, get_class());
+         static::$isRegistered = true;
+         static::$wrapperName = $wrapperName;
+      }
+   }
+
+   /**
+    * Create context for stream wrapper.
+    * @param CacheStorageInterface $cacheStorage
+    * @return resource
+    */
+   public static function createContext(CacheStorageInterface $cacheStorage)
+   {
+      return stream_context_create([static::$wrapperName => ['cacheStorage' => $cacheStorage]]);
+   }
+
+   /**
+    * Extract from context cache storage and set it to instance property.
+    */
+   protected function setCacheStorageFromContext(): void
+   {
+      $options = stream_context_get_options($this->context);
+      $this->cacheStorage = $options[self::$wrapperName]['cacheStorage'];
+   }
 
    /**
     * Implements stream_open() for StreamWrapper.
@@ -32,6 +99,7 @@ class ScannerStreamWrapper
       {
          return false;
       }
+      $this->path = $path;
       $this->setCacheStorageFromContext();
       return true;
    }
