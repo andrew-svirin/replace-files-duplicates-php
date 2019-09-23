@@ -30,12 +30,6 @@ final class ReplacementService
    private $cacheStorage;
 
    /**
-    * Context for Scanner.
-    * @var resource
-    */
-   private $scannerStreamWrapperContext;
-
-   /**
     * ReplacementService constructor.
     * Register streams for working with files, duplicates, replacements.
     * @param array $dirPaths
@@ -46,23 +40,19 @@ final class ReplacementService
       $this->dirPaths = $dirPaths;
       $this->cacheStorage = $cacheStorage;
       ScannerStreamWrapper::register('scanner');
-      $this->scannerStreamWrapperContext = ScannerStreamWrapper::createContext($cacheStorage);
    }
 
    /**
     * Scans directory on files and prepare index.
     * Update scanned index by new added files on next launches.
-    * @param callable $indexRule Rule by index determination for save ordered index.
+    * @param callable $indexGenerator Rule for index determination for save index.
+    * @param callable $indexComparator Rule for index comparision for save index.
     * @param callable|null $filter Callback that filters only necessary files.
     */
-   public function scan(callable $indexRule, callable $filter = null): void
+   public function scan(callable $indexGenerator, callable $indexComparator, callable $filter = null): void
    {
       // TODO: Implements scan.
-      // Read last scan date from the stream.
-      $lastScanDateHandler = fopen('scanner://index/last-date', 'rb', false, $this->scannerStreamWrapperContext);
-      $lastScanTime = fread($lastScanDateHandler, 20);
-      fclose($lastScanDateHandler);
-      $lastScanDate = DateTime::createFromFormat('U', !empty($lastScanTime) ? (int)$lastScanTime : time());
+      $lastScanDate = $this->readLastScanDate();
       if (!($filePaths = $this->findFilePaths($lastScanDate)))
       {
          // Return if not new files found.
@@ -73,13 +63,17 @@ final class ReplacementService
          array_filter($filePaths, $filter);
       }
       // Add to index storage indexed files.
-      $indexHandler = fopen('scanner://index/data', 'w', false, $this->scannerStreamWrapperContext);
+      $indexHandleContext = ScannerStreamWrapper::createContext([
+         'cacheStorage' => $this->cacheStorage,
+         'indexComparator' => $indexComparator,
+         'indexGenerator' => $indexGenerator,
+      ]);
+      $indexHandle = fopen('scanner://index/data', 'w', false, $indexHandleContext);
       foreach ($filePaths as $filePath)
       {
-         $fileIndex = $indexRule($filePath);
-         fwrite($indexHandler, sprintf('%s:%s', $fileIndex, $indexHandler));
+         fwrite($indexHandle, $filePath);
       }
-      fclose($indexHandler);
+      fclose($indexHandle);
       return;
    }
 
@@ -128,16 +122,42 @@ final class ReplacementService
       $args = [];
       if (!empty($depth))
       {
+         // Max depth for search in children directories.
          $args[] = sprintf('-maxdepth %d', (int)$depth);
       }
       if ($lastDateTime && ($minDays = $currentDateTime->diff($lastDateTime)->format('%a')))
       {
+         // Last N days file was modified.
          $args[] = sprintf('-mtime %d', (int)$minDays);
       }
-      $command = sprintf('find %s %s', implode(' ', $this->dirPaths), implode(' ', $args));
+      // Find only files.
+      $args[] = '-type f';
+      $cmd = sprintf('find %s %s', implode(' ', $this->dirPaths), implode(' ', $args));
       $output = [];
-      exec($command, $output);
+      $return = [];
+      exec($cmd, $output, $return);
+      if(!empty($return)){
+         trigger_error(sprintf('Find FilePaths failed: %s', $cmd));
+      }
       return $output;
+   }
+
+   /**
+    * Read from the file last scan date and format result.
+    * @return DateTime
+    */
+   private function readLastScanDate(): DateTime
+   {
+      $lastScanDateContext = ScannerStreamWrapper::createContext([
+         'cacheStorage' => $this->cacheStorage,
+      ]);
+      $lastScanDateHandle = fopen('scanner://index/last-date', 'rb', false, $lastScanDateContext);
+      // Read timestamp from the file.
+      $lastScanTime = fread($lastScanDateHandle, 20);
+      fclose($lastScanDateHandle);
+      // Format read string to DateTime.
+      $lastScanDate = DateTime::createFromFormat('U', !empty($lastScanTime) ? (int)$lastScanTime : time());
+      return $lastScanDate;
    }
 
 }

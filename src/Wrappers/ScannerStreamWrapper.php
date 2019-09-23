@@ -7,13 +7,16 @@ use AndrewSvirin\FileReplace\Contracts\CacheStorageInterface;
 /**
  * File FileReaderWrapper implements working with Files and uses cache.
  *
- * Use `find . -maxdepth 1 -mtime -1` for scan dir on files, where `-mtime -1` ~ 24 hours ago.
- *
  * @license http://www.opensource.org/licenses/mit-license.html  MIT License
  * @author Andrew Svirin
  */
 class ScannerStreamWrapper
 {
+
+   /**
+    * Delimiter between hash and file path.
+    */
+   const INDEX_DELIMITER = ':';
 
    /**
     * Is registered stream wrapper.
@@ -52,10 +55,22 @@ class ScannerStreamWrapper
    private $path;
 
    /**
+    * Function for compare line hashes. Function must return -1|0|1.
+    * @var callable
+    */
+   private $indexComparator;
+
+   /**
+    * Function for generate line hash. Function must return string.
+    * @var callable
+    */
+   private $indexGenerator;
+
+   /**
     * Register stream wrapper.
     * @param string $wrapperName
     */
-   public static function register($wrapperName): void
+   public static function register(string $wrapperName): void
    {
       if (!static::$isRegistered)
       {
@@ -67,26 +82,28 @@ class ScannerStreamWrapper
 
    /**
     * Create context for stream wrapper.
-    * @param CacheStorageInterface $cacheStorage
+    * @param array $context
     * @return resource
     */
-   public static function createContext(CacheStorageInterface $cacheStorage)
+   public static function createContext(array $context)
    {
-      return stream_context_create([static::$wrapperName => ['cacheStorage' => $cacheStorage]]);
+      return stream_context_create([static::$wrapperName => $context]);
    }
 
    /**
-    * Extract from context cache storage and set it to instance property.
+    * Extract from context properties and set it to instance property.
     */
-   protected function setCacheStorageFromContext(): void
+   protected function setContext(): void
    {
       $options = stream_context_get_options($this->context);
       $this->cacheStorage = $options[self::$wrapperName]['cacheStorage'];
+      $this->indexComparator = $options[self::$wrapperName]['indexComparator'] ?? null;
+      $this->indexGenerator = $options[self::$wrapperName]['indexGenerator'] ?? null;
    }
 
    /**
     * Implements stream_open() for StreamWrapper.
-    * @param $path
+    * @param string $path
     * @param $mode
     * @param $options
     * @param $opened_path
@@ -100,7 +117,8 @@ class ScannerStreamWrapper
          return false;
       }
       $this->path = $path;
-      $this->setCacheStorageFromContext();
+      $this->setContext();
+      $this->cacheStorage->prepare($this->relPath());
       return true;
    }
 
@@ -120,6 +138,71 @@ class ScannerStreamWrapper
    }
 
    /**
+    * Implements stream_write() for StreamWrapper.
+    * @param string $filePath
+    * @return int
+    */
+   public function stream_write(string $filePath): int
+   {
+      $lineHash = call_user_func_array($this->indexGenerator, [$filePath]);
+      $position = $this->findWritePosition($lineHash);
+      $data = sprintf('%s' . self::INDEX_DELIMITER . '%s', $lineHash, $filePath);
+      $this->cacheStorage->writeToPosition($this->relPath(), $position, $data);
+      return strlen($filePath);
+   }
+
+   /**
+    * Find in the index file position for insertion.
+    * @param string $lineHash
+    * @return int
+    */
+   private function findWritePosition(string $lineHash): int
+   {
+      $position = 1;
+      // Open stream in read mode.
+      if (!$this->cacheStorage->exists($this->relPath()))
+      {
+         // Stream not created yet and position is on the beginning.
+         return $position;
+      }
+      $recordsAmount = $this->cacheStorage->countRecords($this->relPath());
+      // Set the left pointer to 0.
+      $left = 0;
+      // Set the right pointer to the length of the array -1.
+      $right = $recordsAmount - 1;
+      while ($left <= $right)
+      {
+         // Set the initial midpoint to the rounded down value of half the length of the array.
+         $midPoint = (int)floor(($left + $right) / 2);
+         $midLineHash = $this->cacheStorage->readLineForCharacter($this->relPath(), $midPoint, self:: INDEX_DELIMITER);
+         // Compare line hashes.
+         $compHashes = call_user_func_array($this->indexComparator, [$lineHash, $midLineHash]);
+         if (1 === $compHashes)
+         {
+            // The midpoint line hash is less than the line hash.
+            $left = $midPoint + 1;
+            // Set to position left position.
+            $position = $left;
+         }
+         elseif (-1 === $compHashes)
+         {
+            // The midpoint line hash is greater than the line hash.
+            $right = $midPoint - 1;
+            // Set to position right position.
+            $position = $right;
+         }
+         else
+         {
+            // This is the key we are looking for.
+            $position = $midPoint;
+            break;
+         }
+      }
+      // Position holds the last compared place and also position for next insertion.
+      return $position;
+   }
+
+   /**
     * Implements stream_eof() for StreamWrapper.
     * @return bool
     */
@@ -127,6 +210,15 @@ class ScannerStreamWrapper
    {
       // TODO: Implements stream_eof.
       return $this->eof;
+   }
+
+   /**
+    * Get relative path. That is without schema prefix.
+    * @return string
+    */
+   private function relPath(): string
+   {
+      return str_replace(self::$wrapperName . '://', '', $this->path);
    }
 
 }

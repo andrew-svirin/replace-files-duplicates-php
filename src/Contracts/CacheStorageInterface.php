@@ -2,8 +2,6 @@
 
 namespace AndrewSvirin\FileReplace\Contracts;
 
-use DateTimeInterface;
-
 /**
  * File CacheStorageInterface implements CacheStorage Interface that provides functions for work with cache.
  *
@@ -14,10 +12,41 @@ interface CacheStorageInterface
 {
 
    /**
-    * Get date for last scanned file.
-    * @return DateTimeInterface
+    * Stream resource exist.
+    * @param string $path
+    * @return bool
     */
-   function getLastScanDateTime(): DateTimeInterface;
+   function exists(string $path): bool;
 
+   /**
+    * Read string line for met character from the stream.
+    * @param string $path
+    * @param int $position
+    * @param string $char
+    * @return string|null
+    */
+   function readLineForCharacter(string $path, int $position, string $char): ?string;
+
+   /**
+    * Get amount of records in the stream.
+    * @param string $path
+    * @return int
+    */
+   function countRecords(string $path): int;
+
+   /**
+    * Write new record on position to the stream.
+    * @param string $path
+    * @param int $position
+    * @param string $data
+    * @return void
+    */
+   function writeToPosition(string $path, int $position, string $data): void;
+
+   /**
+    * Prepare stream for read/write operation.
+    * @param string $path
+    */
+   function prepare(string $path): void;
 }
 

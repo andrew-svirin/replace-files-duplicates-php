@@ -36,7 +36,25 @@ class ReplacementServiceTest extends TestCase
     */
    public function testScan()
    {
-      $this->replacementService->scan(function(string $filePath){});
+      $this->replacementService->scan(function (string $filePath)
+      {
+         // Index consists from concatenation file size + first byte + last byte.
+         $fp = fopen($filePath, 'r');
+         fseek($fp, 0);
+         $firstByte = fgets($fp, 1);
+         fseek($fp, -1, SEEK_END);
+         $lastByte = fgets($fp, 1);
+         $fileSize = filesize($filePath);
+         return $fileSize . $firstByte . $lastByte;
+      }, function ($a, $b)
+      {
+         return 0;
+      }, function (string $filePath)
+      {
+         // Filter only txt files.
+         $ext = pathinfo($filePath, PATHINFO_EXTENSION);
+         return in_array($ext, ['txt']);
+      });
       $this->assertTrue(true);
    }
 
