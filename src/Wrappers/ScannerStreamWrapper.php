@@ -111,7 +111,6 @@ class ScannerStreamWrapper
     */
    public function stream_open($path, $mode, $options, &$opened_path): bool
    {
-      // TODO: Implements stream_open.
       if (!$this->context)
       {
          return false;
@@ -129,12 +128,17 @@ class ScannerStreamWrapper
     */
    public function stream_read($count): string
    {
-      // TODO: Implements stream_read.
       if ($this->eof || !$count)
       {
+         // If end of file or read characters less than 0.
          return '';
       }
-      return '';
+      if ('' === ($result = $this->cacheStorage->read($this->relPath(), $count)))
+      {
+         // If read empty string, then file is end.
+         $this->eof = true;
+      }
+      return $result;
    }
 
    /**
@@ -208,7 +212,6 @@ class ScannerStreamWrapper
     */
    public function stream_eof(): bool
    {
-      // TODO: Implements stream_eof.
       return $this->eof;
    }
 

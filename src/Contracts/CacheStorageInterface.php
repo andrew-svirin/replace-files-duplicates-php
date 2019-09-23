@@ -48,5 +48,13 @@ interface CacheStorageInterface
     * @param string $path
     */
    function prepare(string $path): void;
+
+   /**
+    * Read N bytes from the stream.
+    * @param string $path
+    * @param int $count
+    * @return string
+    */
+   function read(string $path, int $count);
 }
 

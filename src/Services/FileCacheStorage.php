@@ -111,13 +111,29 @@ class FileCacheStorage implements FileCacheStorageInterface
       $return = [];
       $filePath = $this->filePath($path);
       $fileDir = dirname($filePath);
-      $cmd = sprintf('mkdir -p %s && touch %s', $fileDir, $filePath);
+      $cmd = sprintf('[[ -f filename ]] || (mkdir -p %s && touch %s)', $fileDir, $filePath);
       exec($cmd, $output, $return);
       if (!empty($return))
       {
          trigger_error(sprintf('File prepare failed: %s', $cmd));
       }
       return;
+   }
+
+   /**
+    * {@inheritdoc}
+    */
+   function read(string $path, int $count): string
+   {
+      $output = [];
+      $return = [];
+      $cmd = sprintf(' head -c %d %s', $count, $this->filePath($path));
+      exec($cmd, $output, $return);
+      if (!empty($return))
+      {
+         trigger_error(sprintf('File read failed: %s', $cmd));
+      }
+      return !empty($output) ? reset($output) : '';
    }
 }
 
