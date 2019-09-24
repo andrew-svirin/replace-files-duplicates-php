@@ -2,21 +2,17 @@
 
 namespace AndrewSvirin\FileReplace\Wrappers;
 
-use AndrewSvirin\FileReplace\Contracts\CacheStorageInterface;
+use AndrewSvirin\FileReplace\Contracts\IndexStorageInterface;
+use AndrewSvirin\FileReplace\Factories\RecordFactory;
 
 /**
- * File FileReaderWrapper implements working with Files and uses cache.
+ * Class FileReaderWrapper implements working with File paths and uses storage cache.
  *
  * @license http://www.opensource.org/licenses/mit-license.html  MIT License
  * @author Andrew Svirin
  */
 class ScannerStreamWrapper
 {
-
-   /**
-    * Delimiter between hash and file path.
-    */
-   const INDEX_DELIMITER = ':';
 
    /**
     * Is registered stream wrapper.
@@ -38,7 +34,7 @@ class ScannerStreamWrapper
 
    /**
     * Cache storage.
-    * @var CacheStorageInterface
+    * @var IndexStorageInterface
     */
    protected $cacheStorage;
 
@@ -130,12 +126,12 @@ class ScannerStreamWrapper
    {
       if ($this->eof || !$count)
       {
-         // If end of file or read characters less than 0.
+         // If end of stream resource or read characters less than 0.
          return '';
       }
       if ('' === ($result = $this->cacheStorage->read($this->relPath(), $count)))
       {
-         // If read empty string, then file is end.
+         // If read empty string, then stream resource is end.
          $this->eof = true;
       }
       return $result;
@@ -143,44 +139,44 @@ class ScannerStreamWrapper
 
    /**
     * Implements stream_write() for StreamWrapper.
-    * @param string $filePath
-    * @return int
+    * @param string $data
+    * @return int Must return size of stored data, otherwise will called again.
     */
-   public function stream_write(string $filePath): int
+   public function stream_write(string $data): int
    {
-      $lineHash = call_user_func_array($this->indexGenerator, [$filePath]);
-      $position = $this->findWritePosition($lineHash);
-      $data = sprintf('%s' . self::INDEX_DELIMITER . '%s', $lineHash, $filePath);
-      $this->cacheStorage->writeToPosition($this->relPath(), $position, $data);
-      return strlen($filePath);
+      $record = RecordFactory::buildRecordFromData($data);
+      $record->hash = call_user_func_array($this->indexGenerator, [$record]);
+      $position = $this->findWritePosition($record->hash);
+      $this->cacheStorage->appendRecord($this->relPath(), $position, $record);
+      return strlen($data);
    }
 
    /**
-    * Find in the index file position for insertion.
-    * @param string $lineHash
+    * Find in the index stream resource position for insertion.
+    * @param string $recordHash
     * @return int
     */
-   private function findWritePosition(string $lineHash): int
+   private function findWritePosition(string $recordHash): int
    {
       $position = 1;
-      // Open stream in read mode.
-      if (!$this->cacheStorage->exists($this->relPath()))
+      // Count records int the stream.
+      $recordsAmount = $this->cacheStorage->countRecords($this->relPath());
+      if (0 === $recordsAmount)
       {
          // Stream not created yet and position is on the beginning.
          return $position;
       }
-      $recordsAmount = $this->cacheStorage->countRecords($this->relPath());
-      // Set the left pointer to 0.
-      $left = 0;
-      // Set the right pointer to the length of the array -1.
-      $right = $recordsAmount - 1;
+      // Set the left pointer to 1.
+      $left = $position;
+      // Set the right pointer to the length of the array.
+      $right = $recordsAmount;
       while ($left <= $right)
       {
          // Set the initial midpoint to the rounded down value of half the length of the array.
          $midPoint = (int)floor(($left + $right) / 2);
-         $midLineHash = $this->cacheStorage->readLineForCharacter($this->relPath(), $midPoint, self:: INDEX_DELIMITER);
+         $midHash = $this->cacheStorage->readRecordHash($this->relPath(), $midPoint);
          // Compare line hashes.
-         $compHashes = call_user_func_array($this->indexComparator, [$lineHash, $midLineHash]);
+         $compHashes = call_user_func_array($this->indexComparator, [$recordHash, $midHash]);
          if (1 === $compHashes)
          {
             // The midpoint line hash is less than the line hash.

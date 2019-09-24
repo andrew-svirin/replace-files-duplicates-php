@@ -2,16 +2,22 @@
 
 namespace AndrewSvirin\FileReplace\Services;
 
-use AndrewSvirin\FileReplace\Contracts\FileCacheStorageInterface;
+use AndrewSvirin\FileReplace\Contracts\FileIndexStorageInterface;
+use AndrewSvirin\FileReplace\Models\Record;
 
 /**
- * File FileCacheStorage implements CacheStorage in the file.
+ * Class FileCacheStorage implements CacheStorage in the file.
  *
  * @license http://www.opensource.org/licenses/mit-license.html  MIT License
  * @author Andrew Svirin
  */
-class FileCacheStorage implements FileCacheStorageInterface
+class FileIndexStorage implements FileIndexStorageInterface
 {
+
+   /**
+    * Delimiter between hash and file path.
+    */
+   const INDEX_DELIMITER = ':';
 
    /**
     * Path to storage dir.
@@ -45,19 +51,11 @@ class FileCacheStorage implements FileCacheStorageInterface
    /**
     * {@inheritdoc}
     */
-   public function exists(string $path): bool
-   {
-      return file_exists($this->filePath($path));
-   }
-
-   /**
-    * {@inheritdoc}
-    */
-   public function readLineForCharacter(string $path, int $position, string $char): ?string
+   public function readRecordHash(string $path, int $position): ?string
    {
       $output = [];
       $return = [];
-      $cmd = sprintf('sed "%d!d" < %s  | grep -E "(.+)\%s" -o | cut -c 1', $position, $this->filePath($path), $char);
+      $cmd = sprintf('sed "%d!d" < %s  | grep -E "(.+)\%s" -o | cut -c 1', $position, $this->filePath($path), self::INDEX_DELIMITER);
       // Read specific line. Extract substring for character. Cut last delimiter character.
       exec($cmd, $output, $return);
       if (!empty($return))
@@ -89,8 +87,9 @@ class FileCacheStorage implements FileCacheStorageInterface
     * Write to specific position in the file.
     * {@inheritdoc}
     */
-   public function writeToPosition(string $path, int $position, string $data): void
+   public function appendRecord(string $path, int $position, Record $record): void
    {
+      $data = sprintf('%s' . self::INDEX_DELIMITER . '%s', $record->hash, $record->path);
       $output = [];
       $return = [];
       $cmd = sprintf('sed -i "%di\%s" %s', $position, $data, $this->filePath($path));
@@ -111,7 +110,8 @@ class FileCacheStorage implements FileCacheStorageInterface
       $return = [];
       $filePath = $this->filePath($path);
       $fileDir = dirname($filePath);
-      $cmd = sprintf('[[ -f filename ]] || (mkdir -p %s && touch %s)', $fileDir, $filePath);
+      // If file does not exists, then create dir and file.
+      $cmd = sprintf('if [ ! -e %s ]; then (mkdir -p %s && touch %s && echo "" > %s) fi', $filePath, $fileDir, $filePath, $filePath);
       exec($cmd, $output, $return);
       if (!empty($return))
       {
@@ -123,7 +123,7 @@ class FileCacheStorage implements FileCacheStorageInterface
    /**
     * {@inheritdoc}
     */
-   function read(string $path, int $count): string
+   public function read(string $path, int $count): string
    {
       $output = [];
       $return = [];

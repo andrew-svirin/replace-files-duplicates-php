@@ -1,7 +1,8 @@
 <?php
 
+use AndrewSvirin\FileReplace\Models\Record;
 use AndrewSvirin\FileReplace\ReplacementService;
-use AndrewSvirin\FileReplace\Services\FileCacheStorage;
+use AndrewSvirin\FileReplace\Services\FileIndexStorage;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -27,7 +28,7 @@ class ReplacementServiceTest extends TestCase
       $dirPaths = [
          $this->fixtures,
       ];
-      $cacheStorage = new FileCacheStorage($this->data);
+      $cacheStorage = new FileIndexStorage($this->data);
       $this->replacementService = new ReplacementService($dirPaths, $cacheStorage);
    }
 
@@ -36,23 +37,24 @@ class ReplacementServiceTest extends TestCase
     */
    public function testScan()
    {
-      $this->replacementService->scan(function (string $filePath)
+      $this->replacementService->scan(function (Record $file)
       {
          // Index consists from concatenation file size + first byte + last byte.
-         $fp = fopen($filePath, 'r');
+         $fp = fopen($file->path, 'r');
          fseek($fp, 0);
-         $firstByte = fgets($fp, 1);
+         $firstChar = fgetc($fp);
          fseek($fp, -1, SEEK_END);
-         $lastByte = fgets($fp, 1);
-         $fileSize = filesize($filePath);
-         return $fileSize . $firstByte . $lastByte;
-      }, function ($a, $b)
+         $lastChar = fgetc($fp);
+         $fileSize = filesize($file->path);
+         $hash = $fileSize . dechex(ord($firstChar)) . dechex(ord($lastChar));
+         return $hash;
+      }, function (string $hashA = null, string $hashB = null)
       {
          return 0;
-      }, function (string $filePath)
+      }, function (Record $file)
       {
          // Filter only txt files.
-         $ext = pathinfo($filePath, PATHINFO_EXTENSION);
+         $ext = pathinfo($file->path, PATHINFO_EXTENSION);
          return in_array($ext, ['txt']);
       });
       $this->assertTrue(true);
