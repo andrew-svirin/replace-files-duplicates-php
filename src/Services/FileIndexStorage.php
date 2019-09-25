@@ -55,14 +55,16 @@ class FileIndexStorage implements FileIndexStorageInterface
    {
       $output = [];
       $return = [];
-      $cmd = sprintf('sed "%d!d" < %s  | grep -E "(.+)\%s" -o | cut -c 1', $position, $this->filePath($path), self::INDEX_DELIMITER);
+      // Read line by number from file. Extract hash. Cut delimiter from the end of the line.
+      $cmd = sprintf('sed -n %dp %s  | grep -E "(.+)\%s" -o | sed "s/.$//"', $position, $this->filePath($path), self::INDEX_DELIMITER);
       // Read specific line. Extract substring for character. Cut last delimiter character.
       exec($cmd, $output, $return);
       if (!empty($return))
       {
          trigger_error(sprintf('File readLineForCharacter failed: %s', $cmd));
       }
-      return !empty($output) ? (int)reset($output) : null;
+      $result = !empty($output) ? (int)reset($output) : null;
+      return $result;
    }
 
    /**
@@ -87,12 +89,32 @@ class FileIndexStorage implements FileIndexStorageInterface
     * Write to specific position in the file.
     * {@inheritdoc}
     */
-   public function appendRecord(string $path, int $position, Record $record): void
+   public function insertRecord(string $path, int $position, Record $record): void
    {
+      $recordsAmount = $this->countRecords($path);
       $data = sprintf('%s' . self::INDEX_DELIMITER . '%s', $record->hash, $record->path);
       $output = [];
       $return = [];
-      $cmd = sprintf('sed -i "%di\%s" %s', $position, $data, $this->filePath($path));
+      if (0 === $recordsAmount)
+      {
+         // File was empty and data is first record.
+         $cmd = sprintf('echo "%s" >> %s', $data, $this->filePath($path));
+      }
+      elseif (0 === $position)
+      {
+         // Prepend new line after line number.
+         $cmd = sprintf('sed -i "1i\%s" %s', $data, $this->filePath($path));
+      }
+      elseif ($recordsAmount < $position)
+      {
+         // Position is over records amount, And new data should be put in the end of file.
+         $cmd = sprintf('sed -i "%da\%s" %s', $recordsAmount, $data, $this->filePath($path));
+      }
+      else
+      {
+         // Append new line after line number.
+         $cmd = sprintf('sed -i "%da\%s" %s', $position, $data, $this->filePath($path));
+      }
       exec($cmd, $output, $return);
       if (!empty($return))
       {
@@ -111,7 +133,7 @@ class FileIndexStorage implements FileIndexStorageInterface
       $filePath = $this->filePath($path);
       $fileDir = dirname($filePath);
       // If file does not exists, then create dir and file.
-      $cmd = sprintf('if [ ! -e %s ]; then (mkdir -p %s && touch %s && echo "" > %s) fi', $filePath, $fileDir, $filePath, $filePath);
+      $cmd = sprintf('if [ ! -e %s ]; then (mkdir -p %s && touch %s) fi', $filePath, $fileDir, $filePath);
       exec($cmd, $output, $return);
       if (!empty($return))
       {

@@ -147,7 +147,7 @@ class ScannerStreamWrapper
       $record = RecordFactory::buildRecordFromData($data);
       $record->hash = call_user_func_array($this->indexGenerator, [$record]);
       $position = $this->findWritePosition($record->hash);
-      $this->cacheStorage->appendRecord($this->relPath(), $position, $record);
+      $this->cacheStorage->insertRecord($this->relPath(), $position, $record);
       return strlen($data);
    }
 
@@ -158,14 +158,14 @@ class ScannerStreamWrapper
     */
    private function findWritePosition(string $recordHash): int
    {
-      $position = 1;
-      // Count records int the stream.
+      // Count records in the stream.
       $recordsAmount = $this->cacheStorage->countRecords($this->relPath());
       if (0 === $recordsAmount)
       {
          // Stream not created yet and position is on the beginning.
-         return $position;
+         return 0;
       }
+      $position = 1;
       // Set the left pointer to 1.
       $left = $position;
       // Set the right pointer to the length of the array.
@@ -198,7 +198,7 @@ class ScannerStreamWrapper
             break;
          }
       }
-      // Position holds the last compared place and also position for next insertion.
+      // Position shows more similar hash value and also position for next insertion.
       return $position;
    }
 

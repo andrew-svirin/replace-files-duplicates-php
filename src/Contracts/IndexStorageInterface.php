@@ -49,6 +49,6 @@ interface IndexStorageInterface
     * @param Record $record
     * @return void
     */
-   function appendRecord(string $path, int $position, Record $record): void;
+   function insertRecord(string $path, int $position, Record $record): void;
 }
 

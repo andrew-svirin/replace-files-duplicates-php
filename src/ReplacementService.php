@@ -54,7 +54,7 @@ final class ReplacementService
     */
    public function scan(callable $indexGenerator, callable $indexComparator, callable $filter = null): void
    {
-      // TODO: Implements scan.
+      // TODO: Implement scan.
       $lastScanDate = $this->readLastScanDate();
       if (!($records = $this->findRecords($lastScanDate)))
       {
@@ -90,7 +90,7 @@ final class ReplacementService
     */
    public function getDuplicates(): ?array
    {
-      // TODO: Implements getDuplicates.
+      // TODO: Implement getDuplicates.
       return [];
    }
 
@@ -99,7 +99,7 @@ final class ReplacementService
     */
    public function replaceDuplicatesHard(): bool
    {
-      // TODO: Implements replaceDuplicatesHard.
+      // TODO: Implement replaceDuplicatesHard.
       return true;
    }
 
@@ -108,7 +108,7 @@ final class ReplacementService
     */
    public function replaceDuplicatesSoft(): bool
    {
-      // TODO: Implements replaceDuplicatesSoft.
+      // TODO: Implement replaceDuplicatesSoft.
       return true;
    }
 

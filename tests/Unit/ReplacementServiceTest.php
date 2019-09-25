@@ -46,11 +46,12 @@ class ReplacementServiceTest extends TestCase
          fseek($fp, -1, SEEK_END);
          $lastChar = fgetc($fp);
          $fileSize = filesize($file->path);
-         $hash = $fileSize . dechex(ord($firstChar)) . dechex(ord($lastChar));
+         $hash = $fileSize . ord($firstChar) . ord($lastChar);
          return $hash;
       }, function (string $hashA = null, string $hashB = null)
       {
-         return 0;
+         $result = (int)$hashA <=> (int)$hashB;
+         return $result;
       }, function (Record $file)
       {
          // Filter only txt files.
