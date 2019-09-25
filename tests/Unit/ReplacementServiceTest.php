@@ -39,7 +39,7 @@ class ReplacementServiceTest extends TestCase
    {
       $this->replacementService->scan(function (Record $file)
       {
-         // Index consists from concatenation file size + first byte + last byte.
+         // Hash consists from concatenation file size + first byte + last byte.
          $fp = fopen($file->path, 'r');
          fseek($fp, 0);
          $firstChar = fgetc($fp);
@@ -50,11 +50,12 @@ class ReplacementServiceTest extends TestCase
          return $hash;
       }, function (string $hashA = null, string $hashB = null)
       {
+         // Compare hashes.
          $result = (int)$hashA <=> (int)$hashB;
          return $result;
       }, function (Record $file)
       {
-         // Filter only txt files.
+         // Filter only txt files for scan.
          $ext = pathinfo($file->path, PATHINFO_EXTENSION);
          return in_array($ext, ['txt']);
       });
