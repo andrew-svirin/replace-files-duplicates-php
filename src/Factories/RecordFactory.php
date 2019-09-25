@@ -21,9 +21,10 @@ class RecordFactory
    public static function buildRecordFromLine(string $line): Record
    {
       $record = new Record();
+      // Read timestamp with fractional part from output line.
+      $record->modifiedAt = substr($line, 0, 21);
+      // Read path from output line.
       $record->path = substr($line, 22);
-      // Skip fractional part from output line.
-      $record->modifiedAt = (int)substr($line, 0, 10);
       return $record;
    }
 

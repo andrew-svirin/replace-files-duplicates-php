@@ -5,7 +5,8 @@ namespace AndrewSvirin\FileReplace\Contracts;
 use AndrewSvirin\FileReplace\Models\Record;
 
 /**
- * Interface CacheStorageInterface implements CacheStorage Interface that provides functions for work with cache.
+ * Interface CacheStorageInterface implements CacheStorage Interface that provides functions for work with streams.
+ * Represents methods to work with indexed stream.
  *
  * @license http://www.opensource.org/licenses/mit-license.html  MIT License
  * @author Andrew Svirin
@@ -28,14 +29,23 @@ interface IndexStorageInterface
    function read(string $path, int $count);
 
    /**
-    * Get amount of records in the stream.
+    * Write N bytes to the stream. Overwrites the stream.
+    * @param string $path
+    * @param string $data
+    * @param int|null $count
+    * @return mixed
+    */
+   function write(string $path, string $data, int $count = null);
+
+   /**
+    * Get amount of records in the indexed stream.
     * @param string $path
     * @return int
     */
    function countRecords(string $path): int;
 
    /**
-    * Read record hash by position from the stream.
+    * Read record hash by position from the indexed stream.
     * @param string $path
     * @param int $position
     * @return string|null
@@ -43,7 +53,7 @@ interface IndexStorageInterface
    function readRecordHash(string $path, int $position): ?string;
 
    /**
-    * Write new record on position to the stream.
+    * Write new record on position to the indexed stream.
     * @param string $path
     * @param int $position
     * @param Record $record

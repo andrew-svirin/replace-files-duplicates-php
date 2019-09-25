@@ -82,7 +82,8 @@ class FileIndexStorage implements FileIndexStorageInterface
       {
          trigger_error(sprintf('File countRecords failed: %s', $cmd));
       }
-      return !empty($output) ? (int)reset($output) : 0;
+      $result = !empty($output) ? (int)reset($output) : 0;
+      return $result;
    }
 
    /**
@@ -155,7 +156,25 @@ class FileIndexStorage implements FileIndexStorageInterface
       {
          trigger_error(sprintf('File read failed: %s', $cmd));
       }
-      return !empty($output) ? reset($output) : '';
+      $result = !empty($output) ? reset($output) : '';
+      return $result;
+   }
+
+   /**
+    * {@inheritdoc}
+    */
+   function write(string $path, string $data, int $count = null)
+   {
+      $output = [];
+      $return = [];
+      // File was empty and data is first record.
+      $cmd = sprintf('echo "%s" > %s', $data, $this->filePath($path));
+      exec($cmd, $output, $return);
+      if (!empty($return))
+      {
+         trigger_error(sprintf('File write failed: %s', $cmd));
+      }
+      return;
    }
 }
 

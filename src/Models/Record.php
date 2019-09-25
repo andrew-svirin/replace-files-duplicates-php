@@ -20,8 +20,8 @@ class Record implements Serializable
    public $path;
 
    /**
-    * Timestamp.
-    * @var int
+    * Timestamp with fractional part.
+    * @var string
     */
    public $modifiedAt;
 

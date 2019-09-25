@@ -6,7 +6,6 @@ use AndrewSvirin\FileReplace\Contracts\IndexStorageInterface;
 use AndrewSvirin\FileReplace\Factories\RecordFactory;
 use AndrewSvirin\FileReplace\Models\Record;
 use AndrewSvirin\FileReplace\Wrappers\ScannerStreamWrapper;
-use DateTime;
 
 /**
  * Class Replacement Service.
@@ -54,9 +53,8 @@ final class ReplacementService
     */
    public function scan(callable $indexGenerator, callable $indexComparator, callable $filter = null): void
    {
-      // TODO: Implement scan.
-      $lastScanDate = $this->readLastScanDate();
-      if (!($records = $this->findRecords($lastScanDate)))
+      $lastTimestamp = $this->readLastScanRecordModifiedAt();
+      if (!($records = $this->findRecords($lastTimestamp)))
       {
          // Return if not new files found.
          return;
@@ -72,12 +70,13 @@ final class ReplacementService
          'indexComparator' => $indexComparator,
          'indexGenerator' => $indexGenerator,
       ]);
-      $indexHandle = fopen('scanner://index/data', 'w', false, $indexHandleContext);
+      $indexHandle = fopen('scanner://index/data', 'wi', false, $indexHandleContext);
       foreach ($records as $record)
       {
          // Stream works with string only.
          $data = RecordFactory::buildDataFromRecord($record);
          fwrite($indexHandle, $data);
+         $this->writeLastScanRecordModifiedAt($record->modifiedAt);
       }
       fclose($indexHandle);
       return;
@@ -115,17 +114,17 @@ final class ReplacementService
    /**
     * Find files for index in the scanning directories.
     * Order result by timestamp.
-    * @param DateTime|null $lastDateTime Last scan date.
+    * @param string|null $lastTimestamp Last scan date timestamp with fractional part.
     * @param null $amount
     * @param int $depth Scan files depth.
-    * @param DateTime|null $currentDateTime Current date.
+    * @param int|null $currentTimestamp Current date.
     * @return Record[]
     */
-   private function findRecords(DateTime $lastDateTime = null, $amount = null, int $depth = 1, DateTime $currentDateTime = null): array
+   private function findRecords(string $lastTimestamp = null, $amount = null, int $depth = 1, int $currentTimestamp = null): array
    {
-      if (null === $currentDateTime)
+      if (null === $currentTimestamp)
       {
-         $currentDateTime = DateTime::createFromFormat('U', time());
+         $currentTimestamp = time();
       }
       $args = [];
       if (!empty($depth))
@@ -133,10 +132,11 @@ final class ReplacementService
          // Max depth for search in children directories.
          $args[] = sprintf('-maxdepth %d', (int)$depth);
       }
-      if ($lastDateTime && ($minDays = $currentDateTime->diff($lastDateTime)->format('%a')))
+      if (null !== $lastTimestamp)
       {
-         // Last N days file was modified.
-         $args[] = sprintf('-mtime %d', (int)$minDays);
+         $minSeconds = $currentTimestamp - (int)$lastTimestamp;
+         // Last N seconds file was modified.
+         $args[] = sprintf('-mtime -%ds', $minSeconds);
       }
       // Find only files.
       $args[] = '-type f';
@@ -161,27 +161,47 @@ final class ReplacementService
       unset($output[0]);
       foreach ($output as $line)
       {
-         $result[] = RecordFactory::buildRecordFromLine($line);
+         $record = RecordFactory::buildRecordFromLine($line);
+         // To result can come lines with identical timestamp but different fractional part, thus ignore processed.
+         if ($record->modifiedAt < $lastTimestamp)
+         {
+            continue;
+         }
+         $result[] = $record;
       }
       return $result;
    }
 
    /**
-    * Read from the file last scan date and format result.
-    * @return DateTime
+    * Read from the stream last scanned record modified at datetime with fractional part and format result.
+    * @return string|null
     */
-   private function readLastScanDate(): DateTime
+   private function readLastScanRecordModifiedAt(): ?string
    {
-      $lastScanDateContext = ScannerStreamWrapper::createContext([
+      $lastTimestampContext = ScannerStreamWrapper::createContext([
          'cacheStorage' => $this->cacheStorage,
       ]);
-      $lastScanDateHandle = fopen('scanner://index/last-date', 'rb', false, $lastScanDateContext);
-      // Read timestamp from the file.
-      $lastScanTime = fread($lastScanDateHandle, 20);
-      fclose($lastScanDateHandle);
+      $lastTimestampHandle = fopen('scanner://index/last-date', 'rb', false, $lastTimestampContext);
+      // Read timestamp with fractional part from the file.
+      $lastTimestamp = fread($lastTimestampHandle, 21);
+      fclose($lastTimestampHandle);
       // Format read string to DateTime.
-      $lastScanDate = DateTime::createFromFormat('U', !empty($lastScanTime) ? (int)$lastScanTime : time());
-      return $lastScanDate;
+      $result = !empty($lastTimestamp) ? $lastTimestamp : null;
+      return $result;
+   }
+
+   /**
+    * Write to stream last scan datetime with fractional part.
+    * @param string $modifiedAt
+    */
+   private function writeLastScanRecordModifiedAt(string $modifiedAt)
+   {
+      $lastTimestampContext = ScannerStreamWrapper::createContext([
+         'cacheStorage' => $this->cacheStorage,
+      ]);
+      $lastTimestampHandle = fopen('scanner://index/last-date', 'w', false, $lastTimestampContext);
+      fwrite($lastTimestampHandle, $modifiedAt);
+      fclose($lastTimestampHandle);
    }
 
 }

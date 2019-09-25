@@ -51,6 +51,12 @@ class ScannerStreamWrapper
    private $path;
 
    /**
+    * Stream opened mode.
+    * @var string wi|w|rb.
+    */
+   private $mode;
+
+   /**
     * Function for compare line hashes. Function must return -1|0|1.
     * @var callable
     */
@@ -112,6 +118,7 @@ class ScannerStreamWrapper
          return false;
       }
       $this->path = $path;
+      $this->mode = $mode;
       $this->setContext();
       $this->cacheStorage->prepare($this->relPath());
       return true;
@@ -144,10 +151,18 @@ class ScannerStreamWrapper
     */
    public function stream_write(string $data): int
    {
-      $record = RecordFactory::buildRecordFromData($data);
-      $record->hash = call_user_func_array($this->indexGenerator, [$record]);
-      $position = $this->findWritePosition($record->hash);
-      $this->cacheStorage->insertRecord($this->relPath(), $position, $record);
+      if ('wi' === $this->mode && null !== $this->indexGenerator)
+      {
+         // Work with indexed stream.
+         $record = RecordFactory::buildRecordFromData($data);
+         $record->hash = call_user_func_array($this->indexGenerator, [$record]);
+         $position = $this->findWritePosition($record->hash);
+         $this->cacheStorage->insertRecord($this->relPath(), $position, $record);
+      }
+      elseif ('w' === $this->mode)
+      {
+         $this->cacheStorage->write($this->relPath(), $data);
+      }
       return strlen($data);
    }
 
