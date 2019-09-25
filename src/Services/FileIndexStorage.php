@@ -3,6 +3,7 @@
 namespace AndrewSvirin\FileReplace\Services;
 
 use AndrewSvirin\FileReplace\Contracts\FileIndexStorageInterface;
+use AndrewSvirin\FileReplace\Factories\RecordFactory;
 use AndrewSvirin\FileReplace\Models\Record;
 
 /**
@@ -13,11 +14,6 @@ use AndrewSvirin\FileReplace\Models\Record;
  */
 class FileIndexStorage implements FileIndexStorageInterface
 {
-
-   /**
-    * Delimiter between hash and file path.
-    */
-   const INDEX_DELIMITER = ':';
 
    /**
     * Path to storage dir.
@@ -49,21 +45,23 @@ class FileIndexStorage implements FileIndexStorageInterface
    }
 
    /**
-    * {@inheritdoc}
+    * Read record by position from the indexed stream.
+    * @param string $path
+    * @param int $position
+    * @return Record|null
     */
-   public function readRecordHash(string $path, int $position): ?string
+   public function readRecord(string $path, int $position): ?Record
    {
       $output = [];
       $return = [];
-      // Read line by number from file. Extract hash. Cut delimiter from the end of the line.
-      $cmd = sprintf('sed -n %dp %s  | grep -E "(.+)\%s" -o | sed "s/.$//"', $position, $this->filePath($path), self::INDEX_DELIMITER);
-      // Read specific line. Extract substring for character. Cut last delimiter character.
+      // Read line by number from the file.
+      $cmd = sprintf('sed -n %dp %s', $position, $this->filePath($path));
       exec($cmd, $output, $return);
       if (!empty($return))
       {
-         trigger_error(sprintf('File readLineForCharacter failed: %s', $cmd));
+         trigger_error(sprintf('File readRecord failed: %s', $cmd));
       }
-      $result = !empty($output) ? (int)reset($output) : null;
+      $result = !empty($output) ? RecordFactory::buildRecordFromIndexLine(reset($output)) : null;
       return $result;
    }
 
@@ -93,7 +91,7 @@ class FileIndexStorage implements FileIndexStorageInterface
    public function insertRecord(string $path, int $position, Record $record): void
    {
       $recordsAmount = $this->countRecords($path);
-      $data = sprintf('%s' . self::INDEX_DELIMITER . '%s', $record->hash, $record->path);
+      $data = RecordFactory::buildIndexLineFromRecord($record);
       $output = [];
       $return = [];
       if (0 === $recordsAmount)
@@ -146,6 +144,23 @@ class FileIndexStorage implements FileIndexStorageInterface
    /**
     * {@inheritdoc}
     */
+   function size(string $path): int
+   {
+      $output = [];
+      $return = [];
+      $cmd = sprintf('wc -c < %s', $this->filePath($path));
+      exec($cmd, $output, $return);
+      if (!empty($return))
+      {
+         trigger_error(sprintf('File size failed: %s', $cmd));
+      }
+      $result = !empty($output) ? (int)reset($output) : 0;
+      return $result;
+   }
+
+   /**
+    * {@inheritdoc}
+    */
    public function read(string $path, int $count): string
    {
       $output = [];
@@ -156,7 +171,7 @@ class FileIndexStorage implements FileIndexStorageInterface
       {
          trigger_error(sprintf('File read failed: %s', $cmd));
       }
-      $result = !empty($output) ? reset($output) : '';
+      $result = !empty($output) ? implode("\n", $output) : '';
       return $result;
    }
 

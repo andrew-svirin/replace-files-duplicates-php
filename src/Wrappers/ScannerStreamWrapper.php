@@ -52,9 +52,19 @@ class ScannerStreamWrapper
 
    /**
     * Stream opened mode.
-    * @var string wi|w|rb.
+    * @var string wi|w|rb|rbi.
     */
    private $mode;
+
+   /**
+    * @var int
+    */
+   private $position;
+
+   /**
+    * @var int
+    */
+   private $size;
 
    /**
     * Function for compare line hashes. Function must return -1|0|1.
@@ -121,6 +131,18 @@ class ScannerStreamWrapper
       $this->mode = $mode;
       $this->setContext();
       $this->cacheStorage->prepare($this->relPath());
+      if (in_array($mode, ['ri', 'wi']))
+      {
+         // Indexed stream.
+         $this->position = 1;
+         $this->size = $this->cacheStorage->countRecords($this->relPath());
+      }
+      else
+      {
+         $this->position = 0;
+         $this->size = $this->cacheStorage->size($this->relPath());
+      }
+
       return true;
    }
 
@@ -129,17 +151,38 @@ class ScannerStreamWrapper
     * @param $count
     * @return string
     */
-   public function stream_read($count): string
+   public function stream_read(&$count): string
    {
-      if ($this->eof || !$count)
+      // Uses for stop reading line.
+      static $readRecord = false;
+      if ($readRecord)
+      {
+         // Line was read by fgets().
+         $this->position += 1;
+         $readRecord = false;
+         return '';
+      }
+      if (!$count)
       {
          // If end of stream resource or read characters less than 0.
          return '';
       }
-      if ('' === ($result = $this->cacheStorage->read($this->relPath(), $count)))
+      if ('ri' === $this->mode)
       {
-         // If read empty string, then stream resource is end.
-         $this->eof = true;
+         // Read index stream resource line by line by fgets().
+         $result = RecordFactory::buildDataFromRecord($this->cacheStorage->readRecord($this->relPath(), $this->position));
+         $readRecord = true;
+      }
+      elseif ('r' === $this->mode)
+      {
+         // Read stream resource.
+         $result = $this->cacheStorage->read($this->relPath(), $count);
+         $this->position += strlen($result);
+      }
+      else
+      {
+         // Not determinate read mode.
+         $result = '';
       }
       return $result;
    }
@@ -189,7 +232,7 @@ class ScannerStreamWrapper
       {
          // Set the initial midpoint to the rounded down value of half the length of the array.
          $midPoint = (int)floor(($left + $right) / 2);
-         $midHash = $this->cacheStorage->readRecordHash($this->relPath(), $midPoint);
+         $midHash = $this->cacheStorage->readRecord($this->relPath(), $midPoint)->hash;
          // Compare line hashes.
          $compHashes = call_user_func_array($this->indexComparator, [$recordHash, $midHash]);
          if (1 === $compHashes)
@@ -218,12 +261,22 @@ class ScannerStreamWrapper
    }
 
    /**
+    * Implements stream_tell() for StreamWrapper.
+    * @return int
+    */
+   public function stream_tell(): int
+   {
+      return $this->position;
+   }
+
+   /**
     * Implements stream_eof() for StreamWrapper.
     * @return bool
     */
    public function stream_eof(): bool
    {
-      return $this->eof;
+      $result = $this->position >= $this->size;
+      return $result;
    }
 
    /**

@@ -21,6 +21,13 @@ interface IndexStorageInterface
    function prepare(string $path): void;
 
    /**
+    * Get stream size.
+    * @param string $path
+    * @return mixed
+    */
+   function size(string $path): int;
+
+   /**
     * Read N bytes from the stream.
     * @param string $path
     * @param int $count
@@ -45,12 +52,12 @@ interface IndexStorageInterface
    function countRecords(string $path): int;
 
    /**
-    * Read record hash by position from the indexed stream.
+    * Read record by position from the indexed stream.
     * @param string $path
     * @param int $position
-    * @return string|null
+    * @return Record|null
     */
-   function readRecordHash(string $path, int $position): ?string;
+   public function readRecord(string $path, int $position);
 
    /**
     * Write new record on position to the indexed stream.

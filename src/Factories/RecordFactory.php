@@ -14,11 +14,16 @@ class RecordFactory
 {
 
    /**
+    * Delimiter between hash and file path for file.
+    */
+   const FILE_INDEX_DELIMITER = ':';
+
+   /**
     * Builds new Record instance by output line.
     * @param string $line
     * @return Record
     */
-   public static function buildRecordFromLine(string $line): Record
+   public static function buildRecordFromOutputLine(string $line): Record
    {
       $record = new Record();
       // Read timestamp with fractional part from output line.
@@ -26,6 +31,33 @@ class RecordFactory
       // Read path from output line.
       $record->path = substr($line, 22);
       return $record;
+   }
+
+   /**
+    * Builds new Record instance by index line.
+    * @param string $line
+    * @return Record
+    */
+   public static function buildRecordFromIndexLine(string $line): Record
+   {
+      $record = new Record();
+      $delimiterPosition = strpos($line, self::FILE_INDEX_DELIMITER);
+      // Read hash from index line.
+      $record->hash = substr($line, 0, $delimiterPosition);
+      // Read path from index line.
+      $record->path = substr($line, $delimiterPosition + 1);
+      return $record;
+   }
+
+   /**
+    * Builds index line from the Record.
+    * @param Record $record
+    * @return string
+    */
+   public static function buildIndexLineFromRecord(Record $record): string
+   {
+      $line = sprintf('%s' . self::FILE_INDEX_DELIMITER . '%s', $record->hash, $record->path);
+      return $line;
    }
 
    /**

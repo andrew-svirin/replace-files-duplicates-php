@@ -83,32 +83,55 @@ final class ReplacementService
    }
 
    /**
-    * Scans index on duplicates and mark point of last scan for scan continuously.
-    * Prepare index of duplicates.
-    * @return array|null
+    * Scans index stream on records duplicates.
+    * @return \Generator|Record[][]|null
     */
-   public function getDuplicates(): ?array
+   public function findDuplicates()
    {
-      // TODO: Implement getDuplicates.
-      return [];
+      $indexHandleContext = ScannerStreamWrapper::createContext([
+         'cacheStorage' => $this->cacheStorage,
+      ]);
+      $indexHandle = fopen('scanner://index/data', 'ri', false, $indexHandleContext);
+
+      $prevRecord = null;
+      while (!feof($indexHandle))
+      {
+         $data = fgets($indexHandle);
+         $currentRecord = RecordFactory::buildRecordFromData($data);
+         if (null === $prevRecord)
+         {
+            $prevRecord = $currentRecord;
+            continue;
+         }
+         if ($prevRecord->hash === $currentRecord->hash)
+         {
+            yield [$prevRecord, $currentRecord];
+         }
+         $prevRecord = $currentRecord;
+      }
+      yield null;
    }
 
    /**
     * Replace duplicates by hard link and update duplicates list.
+    * @param array $duplicates
+    * @return bool
     */
-   public function replaceDuplicatesHard(): bool
+   public function replaceDuplicatesHard(array $duplicates): bool
    {
       // TODO: Implement replaceDuplicatesHard.
-      return true;
+      return isset($duplicates);
    }
 
    /**
     * Replace duplicates by soft link and update duplicates list.
+    * @param array $duplicates
+    * @return bool
     */
-   public function replaceDuplicatesSoft(): bool
+   public function replaceDuplicatesSoft(array $duplicates): bool
    {
       // TODO: Implement replaceDuplicatesSoft.
-      return true;
+      return isset($duplicates);
    }
 
    /**
@@ -161,7 +184,7 @@ final class ReplacementService
       unset($output[0]);
       foreach ($output as $line)
       {
-         $record = RecordFactory::buildRecordFromLine($line);
+         $record = RecordFactory::buildRecordFromOutputLine($line);
          // To result can come lines with identical timestamp but different fractional part, thus ignore processed.
          if ($record->modifiedAt < $lastTimestamp)
          {
@@ -181,7 +204,7 @@ final class ReplacementService
       $lastTimestampContext = ScannerStreamWrapper::createContext([
          'cacheStorage' => $this->cacheStorage,
       ]);
-      $lastTimestampHandle = fopen('scanner://index/last-date', 'rb', false, $lastTimestampContext);
+      $lastTimestampHandle = fopen('scanner://index/last-date', 'r', false, $lastTimestampContext);
       // Read timestamp with fractional part from the file.
       $lastTimestamp = fread($lastTimestampHandle, 21);
       fclose($lastTimestampHandle);

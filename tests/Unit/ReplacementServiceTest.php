@@ -62,12 +62,16 @@ class ReplacementServiceTest extends TestCase
    }
 
    /**
-    * @depends testScan
     * @group duplicates
     */
-   public function testGetDuplicates()
+   public function testFindDuplicates()
    {
-
+      $duplicates = $this->replacementService->findDuplicates();
+      while (($duplicate = $duplicates->current()))
+      {
+         $this->assertTrue(is_array($duplicate));
+         $duplicates->next();
+      }
    }
 
 }
