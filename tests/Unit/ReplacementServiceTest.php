@@ -162,4 +162,27 @@ class ReplacementServiceTest extends TestCase
       }
    }
 
+   /**
+    * @group duplicates_size
+    */
+   public function testDuplicatesSize()
+   {
+      $this->testReplaceDuplicatesHard();
+      $duplicatesGen = $this->replacementService->findDuplicates();
+      $duplicateSize = 0;
+      $linkBlock = 1;
+      while (($records = $duplicatesGen->current()))
+      {
+         /* @var $record Record */
+         $record = reset($records);
+         $stat = stat($record->path);
+         if ($stat['blocks'] > 0)
+         {
+            $duplicateSize += ($stat['blocks'] - $linkBlock) * $stat['blksize'];
+         }
+         $duplicatesGen->next();
+      }
+      $this->assertTrue($duplicateSize > 0);
+   }
+
 }
