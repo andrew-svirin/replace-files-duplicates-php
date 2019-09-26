@@ -47,3 +47,20 @@ Find duplicates after scan and replace by hard link.
          $duplicatesGen->next();
       }
 ```
+Calculate duplicates size in bytes.
+```php
+      $duplicatesGen = $replacementService->findDuplicates();
+      $duplicateSize = 0;
+      $linkBlock = 1;
+      while (($records = $duplicatesGen->current()))
+      {
+         /* @var $record Record */
+         $record = reset($records);
+         $stat = stat($record->path);
+         if (0 < $stat['blocks'])
+         {
+            $duplicateSize += ($stat['blocks'] * 512) - $stat['blksize'];
+         }
+         $duplicatesGen->next();
+      }
+```

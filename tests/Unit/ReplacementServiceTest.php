@@ -176,7 +176,7 @@ class ReplacementServiceTest extends TestCase
          /* @var $record Record */
          $record = reset($records);
          $stat = stat($record->path);
-         if ($stat['blocks'] > 0)
+         if (0 < $stat['blocks'])
          {
             $duplicateSize += ($stat['blocks'] - $linkBlock) * $stat['blksize'];
          }
