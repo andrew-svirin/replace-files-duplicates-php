@@ -9,9 +9,9 @@ Useful tool for decrease size of storage by removing copies.
 # Usage
 Define Storage for cache and service.
 ```php
-      $dirPaths = [__DIR_PATH_FOR_SCAN__];
+      $scanStorage = new UnixScanStorage([__DIR_PATH_FOR_SCAN__]);
       $cacheStorage = new FileIndexStorage(__DIR_PATH_FOR_CACHE_STORAGE__);
-      $replacementService = new ReplacementService($dirPaths, $cacheStorage);
+      $replacementService = new ReplacementService($scanStorage, $cacheStorage);
 ```
 Scan directories for build index.
 ```php
