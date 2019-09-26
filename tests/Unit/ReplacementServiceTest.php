@@ -1,8 +1,9 @@
 <?php
 
 use AndrewSvirin\FileReplace\Models\Record;
+use AndrewSvirin\FileReplace\Storages\UnixScanStorage;
 use AndrewSvirin\FileReplace\ReplacementService;
-use AndrewSvirin\FileReplace\Services\FileIndexStorage;
+use AndrewSvirin\FileReplace\Services\UnixFileIndexStorage;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -28,8 +29,9 @@ class ReplacementServiceTest extends TestCase
       $dirPaths = [
          $this->fixtures,
       ];
-      $cacheStorage = new FileIndexStorage($this->data);
-      $this->replacementService = new ReplacementService($dirPaths, $cacheStorage);
+      $cacheStorage = new UnixFileIndexStorage($this->data);
+      $scanStorage = new UnixScanStorage($dirPaths);
+      $this->replacementService = new ReplacementService($scanStorage, $cacheStorage);
    }
 
    /**

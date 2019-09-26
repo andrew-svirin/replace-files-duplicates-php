@@ -68,4 +68,3 @@ interface IndexStorageInterface
     */
    function insertRecord(string $path, int $position, Record $record): void;
 }
-

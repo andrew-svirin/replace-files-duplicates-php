@@ -7,12 +7,12 @@ use AndrewSvirin\FileReplace\Factories\RecordFactory;
 use AndrewSvirin\FileReplace\Models\Record;
 
 /**
- * Class FileCacheStorage implements CacheStorage in the file.
+ * Class FileCacheStorage implements CacheStorage in the files for Unix filesystem.
  *
  * @license http://www.opensource.org/licenses/mit-license.html  MIT License
  * @author Andrew Svirin
  */
-class FileIndexStorage implements FileIndexStorageInterface
+class UnixFileIndexStorage implements FileIndexStorageInterface
 {
 
    /**

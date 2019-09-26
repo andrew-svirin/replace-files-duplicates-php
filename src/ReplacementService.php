@@ -3,6 +3,7 @@
 namespace AndrewSvirin\FileReplace;
 
 use AndrewSvirin\FileReplace\Contracts\IndexStorageInterface;
+use AndrewSvirin\FileReplace\Contracts\ScanStorageInterface;
 use AndrewSvirin\FileReplace\Factories\RecordFactory;
 use AndrewSvirin\FileReplace\Models\Record;
 use AndrewSvirin\FileReplace\Wrappers\ScannerStreamWrapper;
@@ -19,10 +20,10 @@ final class ReplacementService
 {
 
    /**
-    * Directories paths where scan will search duplicates.
-    * @var array
+    * Directories storage where scan will search duplicates.
+    * @var ScanStorageInterface
     */
-   private $dirPaths;
+   private $scanStorage;
 
    /**
     * Cache Storage for intermediate data.
@@ -34,12 +35,12 @@ final class ReplacementService
     * TODO: Implement find, sed, wc, grep, cut, head, sort aliases.
     * ReplacementService constructor.
     * Register streams for working with files, duplicates, replacements.
-    * @param array $dirPaths
+    * @param ScanStorageInterface $scanStorage
     * @param IndexStorageInterface $cacheStorage
     */
-   public function __construct(array $dirPaths, IndexStorageInterface $cacheStorage)
+   public function __construct(ScanStorageInterface $scanStorage, IndexStorageInterface $cacheStorage)
    {
-      $this->dirPaths = $dirPaths;
+      $this->scanStorage = $scanStorage;
       $this->cacheStorage = $cacheStorage;
       ScannerStreamWrapper::register('scanner');
    }
@@ -54,7 +55,7 @@ final class ReplacementService
    public function scan(callable $indexGenerator, callable $indexComparator, callable $filter = null): void
    {
       $lastTimestamp = $this->readLastScanRecordModifiedAt();
-      if (!($records = $this->findRecords($lastTimestamp)))
+      if (!($records = $this->scanStorage->findRecords($lastTimestamp)))
       {
          // Return if not new files found.
          return;
@@ -132,67 +133,6 @@ final class ReplacementService
    {
       // TODO: Implement replaceDuplicatesSoft.
       return isset($duplicates);
-   }
-
-   /**
-    * Find files for index in the scanning directories.
-    * Order result by timestamp.
-    * @param string|null $lastTimestamp Last scan date timestamp with fractional part.
-    * @param null $amount
-    * @param int $depth Scan files depth.
-    * @param int|null $currentTimestamp Current date.
-    * @return Record[]
-    */
-   private function findRecords(string $lastTimestamp = null, $amount = null, int $depth = 1, int $currentTimestamp = null): array
-   {
-      if (null === $currentTimestamp)
-      {
-         $currentTimestamp = time();
-      }
-      $args = [];
-      if (!empty($depth))
-      {
-         // Max depth for search in children directories.
-         $args[] = sprintf('-maxdepth %d', (int)$depth);
-      }
-      if (null !== $lastTimestamp)
-      {
-         $minSeconds = $currentTimestamp - (int)$lastTimestamp;
-         // Last N seconds file was modified.
-         $args[] = sprintf('-mtime -%ds', $minSeconds);
-      }
-      // Find only files.
-      $args[] = '-type f';
-      // Record displays: `Timestamp Path` format. And make result ordered DESC.
-      $args[] = '-printf "\n%T@ %p"';
-      // Sort result by first column ascending.
-      $args[] = ' | sort -n -k 1';
-      if (null !== $amount)
-      {
-         // Filter that output limited amount of records.
-         $args[] = sprintf(' | head -n %d', $amount + 1);
-      }
-      $cmd = sprintf('find %s %s', implode(' ', $this->dirPaths), implode(' ', $args));
-      $output = [];
-      $return = [];
-      exec($cmd, $output, $return);
-      if (!empty($return))
-      {
-         trigger_error(sprintf('Find FilePaths failed: %s', $cmd));
-      }
-      $result = [];
-      unset($output[0]);
-      foreach ($output as $line)
-      {
-         $record = RecordFactory::buildRecordFromOutputLine($line);
-         // To result can come lines with identical timestamp but different fractional part, thus ignore processed.
-         if ($record->modifiedAt < $lastTimestamp)
-         {
-            continue;
-         }
-         $result[] = $record;
-      }
-      return $result;
    }
 
    /**

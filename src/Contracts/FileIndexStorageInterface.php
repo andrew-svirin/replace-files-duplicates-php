@@ -18,4 +18,3 @@ interface FileIndexStorageInterface extends IndexStorageInterface
    function getDirPath(): string;
 
 }
-
