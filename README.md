@@ -29,7 +29,7 @@ Scan directories for build index.
       }, function (string $hashA = null, string $hashB = null)
       {
          // Compare hashes.
-         $result = $hashA <=> $hashB;
+         $result = strnatcmp($hashA, $hashB);
          return $result;
       }, function (Record $file)
       {

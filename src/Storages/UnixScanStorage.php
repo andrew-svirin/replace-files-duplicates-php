@@ -72,7 +72,7 @@ class UnixScanStorage implements ScanStorageInterface
       {
          $record = RecordFactory::buildRecordFromOutputLine($line);
          // To result can come lines with identical timestamp but different fractional part, thus ignore processed.
-         if ($record->modifiedAt <= $lastTimestamp)
+         if (1 !== strnatcmp($record->modifiedAt, $lastTimestamp))
          {
             continue;
          }
