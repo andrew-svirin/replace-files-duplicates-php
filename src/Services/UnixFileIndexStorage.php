@@ -73,7 +73,8 @@ class UnixFileIndexStorage implements FileIndexStorageInterface
    {
       $output = [];
       $return = [];
-      $cmd = sprintf('wc -l %s | grep -E "([0-9]+) " -o | cut -c 1', $this->filePath($path));
+      // Read amount of lines in the file. Extract amount of file name. Cat separator.
+      $cmd = sprintf('wc -l %s | grep -E "([0-9]+) " -o | sed "s/.$//"', $this->filePath($path));
       // Count lines number in the file. Extract amount value by space suffix. Cut last delimiter character.
       exec($cmd, $output, $return);
       if (!empty($return))
@@ -96,17 +97,17 @@ class UnixFileIndexStorage implements FileIndexStorageInterface
       $return = [];
       if (0 === $recordsAmount)
       {
-         // File was empty and data is first record.
+         // File was empty and data is the first record.
          $cmd = sprintf('echo "%s" >> %s', $data, $this->filePath($path));
       }
       elseif (0 === $position)
       {
-         // Prepend new line after line number.
+         // Prepend new line to the file beginning.
          $cmd = sprintf('sed -i "1i\%s" %s', $data, $this->filePath($path));
       }
       elseif ($recordsAmount < $position)
       {
-         // Position is over records amount, And new data should be put in the end of file.
+         // Position is over records amount, And new data should be put to the end of file.
          $cmd = sprintf('sed -i "%da\%s" %s', $recordsAmount, $data, $this->filePath($path));
       }
       else

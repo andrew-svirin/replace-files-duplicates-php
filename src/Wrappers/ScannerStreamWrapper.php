@@ -4,6 +4,7 @@ namespace AndrewSvirin\FileReplace\Wrappers;
 
 use AndrewSvirin\FileReplace\Contracts\IndexStorageInterface;
 use AndrewSvirin\FileReplace\Factories\RecordFactory;
+use AndrewSvirin\FileReplace\Models\Record;
 
 /**
  * Class FileReaderWrapper implements working with File paths and uses storage cache.
@@ -199,7 +200,7 @@ class ScannerStreamWrapper
          // Work with indexed stream.
          $record = RecordFactory::buildRecordFromData($data);
          $record->hash = call_user_func_array($this->indexGenerator, [$record]);
-         $position = $this->findWritePosition($record->hash);
+         $position = $this->findWritePosition($record);
          $this->cacheStorage->insertRecord($this->relPath(), $position, $record);
       }
       elseif ('w' === $this->mode)
@@ -211,10 +212,10 @@ class ScannerStreamWrapper
 
    /**
     * Find in the index stream resource position for insertion.
-    * @param string $recordHash
+    * @param Record $record
     * @return int
     */
-   private function findWritePosition(string $recordHash): int
+   private function findWritePosition(Record $record): int
    {
       // Count records in the stream.
       $recordsAmount = $this->cacheStorage->countRecords($this->relPath());
@@ -234,7 +235,7 @@ class ScannerStreamWrapper
          $midPoint = (int)floor(($left + $right) / 2);
          $midHash = $this->cacheStorage->readRecord($this->relPath(), $midPoint)->hash;
          // Compare line hashes.
-         $compHashes = call_user_func_array($this->indexComparator, [$recordHash, $midHash]);
+         $compHashes = call_user_func_array($this->indexComparator, [$record->hash, $midHash]);
          if (1 === $compHashes)
          {
             // The midpoint line hash is less than the line hash.
@@ -256,7 +257,15 @@ class ScannerStreamWrapper
             break;
          }
       }
-      // Position shows more similar hash value and also position for next insertion.
+      // Position shows more similar hash value.
+      if (isset($compHashes))
+      {
+         if (1 === $compHashes && 0 !== $position && $position < $recordsAmount)
+         {
+            // Find bounced record. And shift position below for next append new record.
+            $position--;
+         }
+      }
       return $position;
    }
 

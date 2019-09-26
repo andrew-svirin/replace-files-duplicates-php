@@ -16,7 +16,7 @@ class RecordFactory
    /**
     * Delimiter between hash and file path for file.
     */
-   const FILE_INDEX_DELIMITER = ':';
+   const FILE_INDEX_DELIMITER = ' ';
 
    /**
     * Builds new Record instance by output line.

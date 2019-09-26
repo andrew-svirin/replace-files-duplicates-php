@@ -74,9 +74,8 @@ final class ReplacementService
       $indexHandle = fopen('scanner://index/data', 'wi', false, $indexHandleContext);
       foreach ($records as $record)
       {
-         // Stream works with string only.
-         $data = RecordFactory::buildDataFromRecord($record);
-         fwrite($indexHandle, $data);
+         // Stream works with string only and object must be serialized to string.
+         fwrite($indexHandle, RecordFactory::buildDataFromRecord($record));
          $this->writeLastScanRecordModifiedAt($record->modifiedAt);
       }
       fclose($indexHandle);
@@ -93,19 +92,19 @@ final class ReplacementService
          'cacheStorage' => $this->cacheStorage,
       ]);
       $indexHandle = fopen('scanner://index/data', 'ri', false, $indexHandleContext);
-
       $prevRecord = null;
       while (!feof($indexHandle))
       {
-         $data = fgets($indexHandle);
-         $currentRecord = RecordFactory::buildRecordFromData($data);
+         $currentRecord = RecordFactory::buildRecordFromData(fgets($indexHandle));
          if (null === $prevRecord)
          {
+            // Nothing compare yet.
             $prevRecord = $currentRecord;
             continue;
          }
          if ($prevRecord->hash === $currentRecord->hash)
          {
+            // Compare hashes for previous and current records.
             yield [$prevRecord, $currentRecord];
          }
          $prevRecord = $currentRecord;

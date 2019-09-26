@@ -6,7 +6,7 @@ use AndrewSvirin\FileReplace\Contracts\ScanStorageInterface;
 use AndrewSvirin\FileReplace\Factories\RecordFactory;
 
 /**
- * Class UnixFileStorage implements storage for scan dirs.
+ * Class UnixScanStorage implements storage for scan dirs.
  *
  * @license http://www.opensource.org/licenses/mit-license.html  MIT License
  * @author Andrew Svirin
@@ -42,9 +42,10 @@ class UnixScanStorage implements ScanStorageInterface
       }
       if (null !== $lastTimestamp)
       {
-         $minSeconds = $currentTimestamp - (int)$lastTimestamp;
-         // Last N seconds file was modified.
-         $args[] = sprintf('-mtime -%ds', $minSeconds);
+         $minSeconds = $currentTimestamp - $lastTimestamp;
+         $minMinutes = 1 / 60 * $minSeconds;
+         // Last N minutes file was modified.
+         $args[] = sprintf('-cmin -%d', ceil($minMinutes));
       }
       // Find only files.
       $args[] = '-type f';
@@ -71,7 +72,7 @@ class UnixScanStorage implements ScanStorageInterface
       {
          $record = RecordFactory::buildRecordFromOutputLine($line);
          // To result can come lines with identical timestamp but different fractional part, thus ignore processed.
-         if ($record->modifiedAt < $lastTimestamp)
+         if ($record->modifiedAt <= $lastTimestamp)
          {
             continue;
          }

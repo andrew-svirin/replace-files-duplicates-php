@@ -43,9 +43,9 @@ class ReplacementServiceTest extends TestCase
       {
          // Hash consists from concatenation file size + first byte + last byte.
          $fp = fopen($file->path, 'r');
-         fseek($fp, 0);
+         fseek($fp, 10);
          $firstChar = fgetc($fp);
-         fseek($fp, -1, SEEK_END);
+         fseek($fp, -10, SEEK_END);
          $lastChar = fgetc($fp);
          $fileSize = filesize($file->path);
          $hash = $fileSize . ord($firstChar) . ord($lastChar);
@@ -53,7 +53,7 @@ class ReplacementServiceTest extends TestCase
       }, function (string $hashA = null, string $hashB = null)
       {
          // Compare hashes.
-         $result = (int)$hashA <=> (int)$hashB;
+         $result = $hashA <=> $hashB;
          return $result;
       }, function (Record $file)
       {
