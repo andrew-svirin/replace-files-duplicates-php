@@ -113,25 +113,35 @@ final class ReplacementService
    }
 
    /**
-    * Replace duplicates by hard link and update duplicates list.
-    * @param array $duplicates
+    * Replace duplicates by hard link.
+    * @param array|Record[] $records
     * @return bool
     */
-   public function replaceDuplicatesHard(array $duplicates): bool
+   public function replaceDuplicatesHard(array $records): bool
    {
-      // TODO: Implement replaceDuplicatesHard.
-      return isset($duplicates);
+      $original = array_shift($records);
+      $status = true;
+      while (($duplicate = array_shift($records)))
+      {
+         $status = $status && $this->scanStorage->replaceByHardLink($original->path, $duplicate->path);
+      }
+      return $status;
    }
 
    /**
-    * Replace duplicates by soft link and update duplicates list.
-    * @param array $duplicates
+    * Replace duplicates by soft link.
+    * @param array|Record[] $records
     * @return bool
     */
-   public function replaceDuplicatesSoft(array $duplicates): bool
+   public function replaceDuplicatesSoft(array $records): bool
    {
-      // TODO: Implement replaceDuplicatesSoft.
-      return isset($duplicates);
+      $original = array_shift($records);
+      $status = true;
+      while (($duplicate = array_shift($records)))
+      {
+         $status = $status && $this->scanStorage->replaceBySoftLink($original->path, $duplicate->path);
+      }
+      return $status;
    }
 
    /**

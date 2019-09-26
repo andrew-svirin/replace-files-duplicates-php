@@ -24,4 +24,20 @@ interface ScanStorageInterface
     */
    function findRecords(string $lastTimestamp = null, $amount = null, int $depth = 1, int $currentTimestamp = null): array;
 
+   /**
+    * Replace file by link.
+    * @param string $linkPath
+    * @param string $filePath
+    * @return bool
+    */
+   function replaceByHardLink(string $linkPath, string $filePath): bool;
+
+   /**
+    * Replace file by link.
+    * @param string $linkPath
+    * @param string $filePath
+    * @return bool
+    */
+   function replaceBySoftLink(string $linkPath, string $filePath): bool;
+
 }

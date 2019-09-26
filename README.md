@@ -38,12 +38,12 @@ Scan directories for build index.
          return in_array($ext, ['txt']);
       });
 ```
-Find duplicates after scan.
+Find duplicates after scan and replace by hard link.
 ```php
-      $duplicates = $replacementService->findDuplicates();
-      while (($duplicate = $duplicates->current()))
+      $duplicatesGen = $replacementService->findDuplicates();
+      while (($records = $duplicatesGen->current()))
       {
-         // Handle duplicate pair here.
-         $duplicates->next();
+         $replacementService->replaceDuplicatesHard($records);
+         $duplicatesGen->next();
       }
 ```

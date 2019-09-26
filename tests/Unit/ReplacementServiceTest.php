@@ -23,15 +23,71 @@ class ReplacementServiceTest extends TestCase
     */
    private $replacementService;
 
-   public function setUp()
+   /**
+    * Copy directory recursively.
+    * @param string $src
+    * @param string $dst
+    */
+   private function recurseCopy(string $src, string $dst)
+   {
+      $dir = opendir($src);
+      @mkdir($dst);
+      while (false !== ($file = readdir($dir)))
+      {
+         if (($file != '.') && ($file != '..'))
+         {
+            if (is_dir($src . '/' . $file))
+            {
+               $this->recurseCopy($src . '/' . $file, $dst . '/' . $file);
+            }
+            else
+            {
+               copy($src . '/' . $file, $dst . '/' . $file);
+            }
+         }
+      }
+      closedir($dir);
+   }
+
+   /**
+    * Remove directory recursively.
+    * @param string $dir
+    */
+   private function recurseRemoveDir(string $dir)
+   {
+      if (is_dir($dir))
+      {
+         $objects = scandir($dir);
+         foreach ($objects as $object)
+         {
+            if ($object != "." && $object != "..")
+            {
+               if (is_dir($dir . "/" . $object))
+                  $this->recurseRemoveDir($dir . "/" . $object);
+               else
+                  unlink($dir . "/" . $object);
+            }
+         }
+         rmdir($dir);
+      }
+   }
+
+   protected function setUp()
    {
       parent::setUp();
+      $this->recurseCopy($this->fixtures, $this->data . '/fixtures');
       $dirPaths = [
-         $this->fixtures,
+         $this->data . '/fixtures',
       ];
-      $cacheStorage = new UnixFileIndexStorage($this->data);
+      $cacheStorage = new UnixFileIndexStorage($this->data . '/index');
       $scanStorage = new UnixScanStorage($dirPaths);
       $this->replacementService = new ReplacementService($scanStorage, $cacheStorage);
+   }
+
+   protected function tearDown()
+   {
+      $this->recurseRemoveDir($this->data . '/fixtures');
+      $this->recurseRemoveDir($this->data . '/index');
    }
 
    /**
@@ -43,9 +99,9 @@ class ReplacementServiceTest extends TestCase
       {
          // Hash consists from concatenation file size + first byte + last byte.
          $fp = fopen($file->path, 'r');
-         fseek($fp, 10);
+         fseek($fp, 0);
          $firstChar = fgetc($fp);
-         fseek($fp, -10, SEEK_END);
+         fseek($fp, -1, SEEK_END);
          $lastChar = fgetc($fp);
          $fileSize = filesize($file->path);
          $hash = $fileSize . ord($firstChar) . ord($lastChar);
@@ -69,11 +125,40 @@ class ReplacementServiceTest extends TestCase
     */
    public function testFindDuplicates()
    {
-      $duplicates = $this->replacementService->findDuplicates();
-      while (($duplicate = $duplicates->current()))
+      $this->testScan();
+      $duplicatesGen = $this->replacementService->findDuplicates();
+      while (($records = $duplicatesGen->current()))
       {
-         $this->assertTrue(is_array($duplicate));
-         $duplicates->next();
+         $this->assertTrue(is_array($records));
+         $duplicatesGen->next();
+      }
+   }
+
+   /**
+    * @group replace_hard
+    */
+   public function testReplaceDuplicatesHard()
+   {
+      $this->testScan();
+      $duplicatesGen = $this->replacementService->findDuplicates();
+      while (($records = $duplicatesGen->current()))
+      {
+         $this->assertTrue($this->replacementService->replaceDuplicatesHard($records));
+         $duplicatesGen->next();
+      }
+   }
+
+   /**
+    * @group replace_soft
+    */
+   public function testReplaceDuplicatesSoft()
+   {
+      $this->testScan();
+      $duplicatesGen = $this->replacementService->findDuplicates();
+      while (($records = $duplicatesGen->current()))
+      {
+         $this->assertTrue($this->replacementService->replaceDuplicatesSoft($records));
+         $duplicatesGen->next();
       }
    }
 

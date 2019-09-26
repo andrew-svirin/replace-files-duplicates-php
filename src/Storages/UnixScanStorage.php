@@ -64,7 +64,7 @@ class UnixScanStorage implements ScanStorageInterface
       exec($cmd, $output, $return);
       if (!empty($return))
       {
-         trigger_error(sprintf('Find FilePaths failed: %s', $cmd));
+         trigger_error(sprintf('Scan findRecords failed: %s', $cmd));
       }
       $result = [];
       unset($output[0]);
@@ -72,13 +72,43 @@ class UnixScanStorage implements ScanStorageInterface
       {
          $record = RecordFactory::buildRecordFromOutputLine($line);
          // To result can come lines with identical timestamp but different fractional part, thus ignore processed.
-         if (1 !== strnatcmp($record->modifiedAt, $lastTimestamp))
+         if (1 === strnatcmp($record->modifiedAt, $lastTimestamp))
          {
-            continue;
+            $result[] = $record;
          }
-         $result[] = $record;
       }
       return $result;
    }
 
+   /**
+    * {@inheritdoc}
+    */
+   function replaceByHardLink(string $linkPath, string $filePath): bool
+   {
+      $cmd = sprintf('unlink %s && ln %s %s', $filePath, $linkPath, $filePath);
+      $output = [];
+      $return = [];
+      exec($cmd, $output, $return);
+      if (!empty($return))
+      {
+         trigger_error(sprintf('Scan replaceByHardLink failed: %s', $cmd));
+      }
+      return true;
+   }
+
+   /**
+    * {@inheritdoc}
+    */
+   function replaceBySoftLink(string $linkPath, string $filePath): bool
+   {
+      $cmd = sprintf('unlink %s && ln -s %s %s', $filePath, $linkPath, $filePath);
+      $output = [];
+      $return = [];
+      exec($cmd, $output, $return);
+      if (!empty($return))
+      {
+         trigger_error(sprintf('Scan replaceBySoftLink failed: %s', $cmd));
+      }
+      return true;
+   }
 }

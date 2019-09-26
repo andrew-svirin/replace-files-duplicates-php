@@ -284,7 +284,7 @@ class ScannerStreamWrapper
     */
    public function stream_eof(): bool
    {
-      $result = $this->position >= $this->size;
+      $result = $this->position > $this->size;
       return $result;
    }
 
